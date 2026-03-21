@@ -1,12 +1,74 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
-
+import { ApiError } from "../utils/ApiError.js";
 const registerUser = asyncHandler
+import {User} from "../models/user.model.js";
+import { uploadToCloudinary } from "../utils/cloudinary.js";    
+import { ApiResponse } from "../utils/ApiResponse.js";
+
 (async(req,res)=>{
-    return res.status(200).json({
-        success: true,
-        message: "User registered successfully"
+    // get user detail from frontend
+
+    const {fullname,email,username,password} = req.body;
+    console.log("email:",email);
+    
+    //validation of user details
+    if(
+        [fullname,email.username,password].some((field)=>field?.trim() === "")
+    ){
+        throw new ApiError(400,"All fields are required");
+    }
+    // if (fullname === "" || email === "" || username === "" || password === "") {
+    //     throw new ApiError(400,"All fields are required");
+    
+    //check if user already exists
+    const existingUser = await User.findOne({
+        $or:[{email: email}, {username: username}]
+    });
+    if(existingUser){
+        throw new ApiError(409,"User with email or username already exists");
+    }
+
+    //check for images, check for avatar
+    const avatarLocalPath = req.files?.avatar[0]?.path;
+    const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
+
+    if(!avatarLocalPath){
+        throw new ApiError(400,"Avatar is required");
+    }
+    //upload the image to cloudinary,avatar
+    const avatar = await uploadToCloudinary(avatarLocalPath);
+    const coverImage = await uploadToCloudinary(coverImageLocalPath);
+
+    if(!avatar){
+        throw new ApiError(500,"Error uploading avatar");
+    }
+
+    //create user object-create entry in db
+    const user = await User.create({
+        fullname,
+        email,
+        username:username.toLowerCase(),
+        password,
+        avatar: avatar.secure_url,
+        coverImage: coverImage?.secure_url || "",
     })
+   
+    //remove password and refresh token field from response
+    const CreatedUser = await User.findById(user._id).select("-password -refreshToken");  
+     //check for user creation  
+    if(!CreatedUser){
+        throw new ApiError(500,"Error creating user");
+    }     
+     //return response to frontend
+    return res.status(201).json(
+        new ApiResponse(200,CreatedUser,"User registered successfully")
+    )
+    
+    
+   
+    
 })
+
 
 
 export {registerUser}
