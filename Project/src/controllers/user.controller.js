@@ -1,11 +1,11 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
-const registerUser = asyncHandler
+
 import {User} from "../models/user.model.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";    
 import { ApiResponse } from "../utils/ApiResponse.js";
 
-(async(req,res)=>{
+const registerUser = asyncHandler(async(req,res)=>{
     // get user detail from frontend
 
     const {fullname,email,username,password} = req.body;
@@ -13,7 +13,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
     
     //validation of user details
     if(
-        [fullname,email.username,password].some((field)=>field?.trim() === "")
+        [fullname,email,username,password].some((field)=>field?.trim() === "")
     ){
         throw new ApiError(400,"All fields are required");
     }
@@ -22,7 +22,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
     
     //check if user already exists
     const existingUser = await User.findOne({
-        $or:[{email: email}, {username: username}]
+        $or:[{email}, {username}]
     });
     if(existingUser){
         throw new ApiError(409,"User with email or username already exists");
@@ -30,7 +30,14 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
     //check for images, check for avatar
     const avatarLocalPath = req.files?.avatar[0]?.path;
-    const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
+    // const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
+    // console.log(req.files);
+
+    let coverImageLocalPath;
+    if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
+        coverImageLocalPath = req.files.coverImage[0].path;
+    }
+    
 
     if(!avatarLocalPath){
         throw new ApiError(400,"Avatar is required");
@@ -38,6 +45,8 @@ import { ApiResponse } from "../utils/ApiResponse.js";
     //upload the image to cloudinary,avatar
     const avatar = await uploadToCloudinary(avatarLocalPath);
     const coverImage = await uploadToCloudinary(coverImageLocalPath);
+
+   
 
     if(!avatar){
         throw new ApiError(500,"Error uploading avatar");

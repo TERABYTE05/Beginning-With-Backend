@@ -7,11 +7,12 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-const uploadImageToCloudinary = async (localPath) => {
+const uploadToCloudinary = async (localPath) => {
     try{
         if(!localPath) return null;
         const result = await cloudinary.uploader.upload(localPath, {resource_type: "auto"});
-        console.log("file is uploaded successfully on cloudinary",result.url);
+        //console.log("file is uploaded successfully on cloudinary",result.url);
+        fs.unlinkSync(localPath);// remove the file from local storage after uploading to cloudinary
         return result;
         }catch(error){
             fs.unlinkSync(localPath);// remove the file from local storage after uploading to cloudinary
@@ -20,15 +21,6 @@ const uploadImageToCloudinary = async (localPath) => {
         }
     }
 
-export {uploadImageToCloudinary};
+export {uploadToCloudinary};
 
 
-cloudinary.v2.uploader.upload("https://www.google.com/url?sa=t&source=web&rct=j&url=https%3A%2F%2Fwww.istockphoto.com%2Fphotos%2Fnature&ved=0CBYQjRxqFwoTCKDVlrjJrpMDFQAAAAAdAAAAABAH&opi=89978449", {public_id: "Trees"},
-    function(error, result){
-        if(error){
-            console.error("Error uploading image to Cloudinary:", error);
-        }else{
-            console.log("Image uploaded successfully. URL:", result.secure_url);
-        }
-    }
-);

@@ -48,15 +48,11 @@ const userSchema = new mongoose.Schema({
 
 }, {timestamps: true});
 
-userSchema.pre("save", async function(next){
-    //run only if password is updated
-    if(!this.isModified("password")){
-        return next();
-    }
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-})
+userSchema.pre("save", async function () {
+    if (!this.isModified("password")) return;
+
+    this.password = await bcrypt.hash(this.password, 10);
+});
 
 userSchema.methods.isPasswordCorrect = async function(password){
     return await bcrypt.compare(password, this.password);
