@@ -268,4 +268,65 @@ const UpdateUserCoverImage = asyncHandler(async(req,res)=>{
     
 })
 
+const getUserChannelProfile = asyncHandler(async(req,res)=>{
+    const {username} = req.params;
+    if(!username?.trim()){
+        throw new ApiError(400,"Username is required");
+    }
+    const channel = await User.aggregate([
+        {
+            $match: {
+                username: username?.trim()
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+        }
+    },
+    {
+        $lookup: {
+            from: "subscriptions",
+            localField: "_id",
+            foreignField: "subscriber",
+            as: "subscriptionsToChannels"
+        }
+    },
+    {
+        $addFields: {
+            subscriberCount: {$size: "$subscribers"},
+            subscribedToChannelsCount: {$size: "$subscriptionsToChannels"},
+            isSubscribed: {
+                $cond:{
+                    if:{$in : [new mongoose.Types.ObjectId(req.user?._id), "$subscribers.subscriber"]},
+                    then: true,
+                    else: false
+
+                }
+            }
+        }
+    },
+    {
+        $project: {
+            fullname: 1,
+            username: 1,
+            subscriberCount: 1,
+            subscribedToChannelsCount: 1,
+            isSubscribed: 1,
+            avatar: 1,
+            coverImage: 1,
+            email: 1
+        }
+    }
+    ])
+    if(!channel || channel.length === 0){
+        throw new ApiError(404,"Channel not found");
+    }return res.status(200).json(
+        new ApiResponse(200, {channel: channel[0]}, "Channel profile fetched successfully")
+    )
+})
+
 export {registerUser, loginUser,logoutUser, refreshAccesToken, changeCurrentUserPassword, getCurrentUserDetails, updateCurrentUserDetails, UpdateUserAvatar, UpdateUserCoverImage}
